@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 interface Message {
   role: "user" | "assistant";
@@ -11,6 +13,7 @@ interface Message {
 }
 
 const MysteriousBottle = () => {
+  const { toast } = useToast();
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -52,32 +55,41 @@ const MysteriousBottle = () => {
     setInput("");
     setIsLoading(true);
 
-    // Simulate AI response (in production, this would call Lovable AI)
-    setTimeout(() => {
-      const responses = [
-        "Always use strong, unique passwords for each account. A password manager can help you manage them securely.",
-        "Two-factor authentication adds an extra layer of security. I highly recommend enabling it on all your important accounts.",
-        "Be cautious of suspicious emails asking for personal information. Legitimate companies won't ask for sensitive data via email.",
-        "Keep your software updated to protect against known vulnerabilities and security threats.",
-        "Use a VPN when connecting to public WiFi to encrypt your internet traffic and protect your privacy.",
-      ];
-      
-      const response = responses[Math.floor(Math.random() * responses.length)];
-      const assistantMessage: Message = { role: "assistant", content: response };
+    try {
+      const { data, error } = await supabase.functions.invoke("privacy-chat", {
+        body: { messages: [...messages, userMessage] },
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      const aiResponse = data.choices[0].message.content;
+      const assistantMessage: Message = { role: "assistant", content: aiResponse };
       
       setMessages((prev) => [...prev, assistantMessage]);
-      setIsLoading(false);
       
       // Auto-speak the response
-      speak(response);
-    }, 1000);
+      speak(aiResponse);
+    } catch (error) {
+      console.error("Error calling AI:", error);
+      toast({
+        title: "Error",
+        description: "Failed to get response. Please try again.",
+        variant: "destructive",
+      });
+      // Remove the user message if there was an error
+      setMessages((prev) => prev.slice(0, -1));
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
     <>
-      {/* Mysterious Bottle Button */}
+      {/* Mysterious Bottle Button - More Subtle */}
       <div
-        className={`fixed bottom-8 right-8 z-50 transition-all duration-500 ${
+        className={`fixed bottom-6 right-6 z-50 transition-all duration-700 ${
           isOpen ? "scale-0 opacity-0" : "scale-100 opacity-100"
         }`}
       >
@@ -86,12 +98,12 @@ const MysteriousBottle = () => {
           className="relative group"
           aria-label="Open mysterious chatbot"
         >
-          <div className="absolute inset-0 animate-pulse-glow rounded-full blur-xl bg-primary/50" />
-          <div className="relative bg-gradient-to-br from-primary/20 to-accent/20 p-6 rounded-full border-2 border-primary/50 backdrop-blur-sm hover:scale-110 transition-transform duration-300 animate-float">
-            <FlaskConical className="w-12 h-12 text-primary" />
+          <div className="absolute inset-0 animate-pulse-glow rounded-full blur-lg bg-primary/20" />
+          <div className="relative bg-gradient-to-br from-primary/10 to-accent/10 p-3 rounded-full border border-primary/30 backdrop-blur-sm hover:scale-105 hover:border-primary/60 transition-all duration-500 animate-float">
+            <FlaskConical className="w-6 h-6 text-primary/70 group-hover:text-primary transition-colors" />
           </div>
-          <div className="absolute -top-12 right-0 bg-card/90 backdrop-blur-sm px-3 py-1 rounded-lg border border-primary/50 text-sm whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
-            Discover the secret...
+          <div className="absolute -top-10 right-0 bg-card/80 backdrop-blur-sm px-2 py-1 rounded text-xs whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
+            ?
           </div>
         </button>
       </div>
